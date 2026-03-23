@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction Report - {{ customer.name }}</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 2rem;
+            color: #333;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #ccc;
+            padding-bottom: 1rem;
+        }
+
+        .business {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .meta {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid #eee;
+            padding: 0.8rem;
+            text-align: left;
+        }
+
+        th {
+            background: #f9f9f9;
+        }
+
+        .red {
+            color: #dc2626;
+        }
+
+        .green {
+            color: #059669;
+        }
+
+        .total {
+            margin-top: 2rem;
+            text-align: right;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <button class="no-print" onclick="window.print()"
+        style="padding: 10px 20px; font-size: 16px; margin-bottom: 20px; cursor: pointer;">Print / Save PDF</button>
+
+    <div class="header">
+        <div class="business">{{ current_user.business_name }}</div>
+        <div>Transaction Statement</div>
+    </div>
+
+    <div class="meta">
+        <div>
+            <strong>Customer:</strong> {{ customer.name }}<br>
+            <strong>Phone:</strong> {{ customer.phone or 'N/A' }}
+        </div>
+        <div>
+            <strong>Date:</strong> <span id="date"></span>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>You Gave (Credit)</th>
+                <th>You Got (Payment)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tx in customer.transactions|sort(attribute='timestamp') %}
+            <tr>
+                <td>{{ tx.timestamp.strftime('%d %b %Y, %I:%M %p') }}</td>
+                <td>{{ tx.description or '-' }}</td>
+                <td class="red">{% if tx.type == 'GAVE' %}₹{{ tx.amount }}{% endif %}</td>
+                <td class="green">{% if tx.type == 'GOT' %}₹{{ tx.amount }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="total">
+        Net Balance:
+        {% if customer.balance > 0 %}
+        <span class="green">You will get ₹{{ customer.balance }}</span>
+        {% elif customer.balance < 0 %} <span class="red">You will give ₹{{ customer.balance | abs }}</span>
+            {% else %}
+            All Settled
+            {% endif %}
+    </div>
+
+    <script>
+        document.getElementById('date').innerText = new Date().toLocaleDateString();
+    </script>
+</body>
+
+</html>

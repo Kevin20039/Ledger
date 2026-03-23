@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div
+    style="padding: 1rem; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 60px; z-index: 50; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        <a href="{{ url_for('main.dashboard') }}"
+            style="text-decoration: none; font-size: 1.2rem; color: var(--text-main);"><i
+                class="fas fa-arrow-left"></i></a>
+        <div style="flex: 1;">
+            <h2 style="font-size: 1.1rem; margin: 0;">{{ customer.name }}</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">{{ customer.phone or 'No Phone' }}</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            {% if customer.phone %}
+            <a href="https://wa.me/{{ customer.phone }}?text=Hello {{ customer.name }}, your pending balance with {{ current_user.business_name }} is {{ customer.balance }}. Please pay specifically."
+                target="_blank"
+                style="width: 36px; height: 36px; border-radius: 50%; background: #25D366; color: white; display: flex; align-items: center; justify-content: center; text-decoration: none;">
+                <i class="fab fa-whatsapp"></i>
+            </a>
+            {% endif %}
+            <a href="{{ url_for('main.customer_report', id=customer.id) }}" target="_blank"
+                style="width: 36px; height: 36px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; text-decoration: none;">
+                <i class="fas fa-file-pdf"></i>
+            </a>
+        </div>
+    </div>
+    <!-- Balance Card inside header -->
+    <div
+        style="margin-top: 1rem; padding: 1rem; background: var(--bg-color); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 500; color: var(--text-muted);">Net Balance</span>
+        {% if customer.balance > 0 %}
+        <div style="text-align: right;">
+            <strong style="color: var(--success); font-size: 1.1rem;">₹{{ customer.balance }}</strong>
+            <span style="display: block; font-size: 0.7rem; color: var(--text-muted);">You'll Get</span>
+        </div>
+        {% elif customer.balance < 0 %} <div style="text-align: right;">
+            <strong style="color: var(--danger); font-size: 1.1rem;">₹{{ customer.balance | abs }}</strong>
+            <span style="display: block; font-size: 0.7rem; color: var(--text-muted);">You'll Give</span>
+    </div>
+    {% else %}
+    <strong style="color: var(--text-muted);">Settled</strong>
+    {% endif %}
+</div>
+</div>
+
+<div class="tx-list" style="padding: 1rem; padding-bottom: 5rem;">
+    {% for tx in customer.transactions|sort(attribute='timestamp', reverse=True) %}
+    <div class="tx-item"
+        style="background: white; border-radius: 8px; padding: 1rem; margin-bottom: 0.5rem; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.2rem;">
+            <span style="font-weight: 500;">{{ 'Credit Given' if tx.type == 'GAVE' else 'Payment Received' }}</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">{{ tx.timestamp.strftime('%d %b') }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p style="color: var(--text-muted); font-size: 0.9rem;">{{ tx.description or '-' }}</p>
+            {% if tx.type == 'GAVE' %}
+            <span style="color: var(--danger); font-weight: 600;">₹ {{ tx.amount }} <i class="fas fa-arrow-up"
+                    style="font-size: 0.7rem;"></i></span>
+            {% else %}
+            <span style="color: var(--success); font-weight: 600;">₹ {{ tx.amount }} <i class="fas fa-arrow-down"
+                    style="font-size: 0.7rem;"></i></span>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+        No transactions yet.
+    </div>
+    {% endfor %}
+</div>
+
+<div class="tx-actions">
+    <button class="tx-btn gave" onclick="openTxModal('GAVE')">
+        <i class="fas fa-arrow-up"></i> You Gave
+    </button>
+    <button class="tx-btn got" onclick="openTxModal('GOT')">
+        <i class="fas fa-arrow-down"></i> You Got
+    </button>
+</div>
+
+<div id="txModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalTitle" style="margin-bottom: 1rem;">Add Transaction</h2>
+        <form action="{{ url_for('main.add_transaction', id=customer.id) }}" method="POST">
+            <input type="hidden" name="type" id="txType">
+            <div class="form-group">
+                <label>Amount (₹)</label>
+                <input type="number" name="amount" step="0.01" required
+                    style="font-size: 1.5rem; text-align: center; padding: 1rem; color: var(--primary);">
+            </div>
+            <div class="form-group">
+                <label>Description (Optional)</label>
+                <input type="text" name="description" placeholder="e.g. Rice, Milk, Part Payment">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn" style="background: #eee; color: #333;"
+                    onclick="toggleModal('txModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="saveBtn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openTxModal(type) {
+        document.getElementById('txType').value = type;
+        const title = type === 'GAVE' ? 'You Gave (Credit)' : 'You Got (Payment)';
+        // const btnText = type === 'GAVE' ? 'Save (Red)' : 'Save (Green)';
+        document.getElementById('modalTitle').innerText = title;
+        // set colors slightly
+        const btn = document.getElementById('saveBtn');
+        if (type === 'GAVE') {
+            btn.style.backgroundColor = 'var(--danger)';
+        } else {
+            btn.style.backgroundColor = 'var(--success)';
+        }
+
+        toggleModal('txModal');
+    }
+</script>
+{% endblock %}

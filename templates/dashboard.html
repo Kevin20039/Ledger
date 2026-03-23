@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="summary-card" style="flex-direction: column; align-items: center; gap: 1rem;">
+    <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+        <div class="summary-item">
+            <h3>Net Balance</h3>
+            {% set net = total_get - total_give %}
+            <div class="amount {{ 'green' if net >= 0 else 'red' }}">
+                ₹{{ net | abs }}
+                <span style="font-size: 0.8rem; color: var(--text-muted); display: block; font-weight: normal;">
+                    {{ 'To Collect' if net >= 0 else 'To Pay' }}
+                </span>
+            </div>
+        </div>
+        <div style="width: 100px; height: 100px;">
+            <canvas id="balanceChart"></canvas>
+        </div>
+    </div>
+
+    <div
+        style="width: 100%; display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 0.5rem;">
+        <div class="summary-item" style="text-align: left;">
+            <h3 style="color: var(--success);"><i class="fas fa-arrow-down"></i> You'll Get</h3>
+            <div class="amount green" style="font-size: 1.2rem;">₹{{ total_get }}</div>
+        </div>
+        <div class="summary-item" style="text-align: right;">
+            <h3 style="color: var(--danger);"><i class="fas fa-arrow-up"></i> You'll Give</h3>
+            <div class="amount red" style="font-size: 1.2rem;">₹{{ total_give }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="search-bar" style="position: sticky; top: 60px; z-index: 90; padding: 1rem; background: var(--bg-color);">
+    <div style="position: relative;">
+        <i class="fas fa-search"
+            style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+        <input type="text" id="searchInput" placeholder="Search Customer..."
+            style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; border: 1px solid var(--border); border-radius: 25px; outline: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+    </div>
+</div>
+
+<div class="customer-list" id="customerList">
+    {% for customer in customers %}
+    <a href="{{ url_for('main.customer_detail', id=customer.id) }}" class="customer-item"
+        data-name="{{ customer.name.lower() }}" data-phone="{{ customer.phone }}">
+        <div class="customer-info">
+            <div style="display: flex; align-items: center; gap: 0.8rem;">
+                <div
+                    style="width: 40px; height: 40px; background: #e0e7ff; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                    {{ customer.name[0] | upper }}
+                </div>
+                <div>
+                    <h4 style="font-weight: 600;">{{ customer.name }}</h4>
+                    <p>{{ customer.phone or 'No Phone' }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="customer-balance">
+            {% if customer.balance > 0 %}
+            <strong style="color: var(--success)">₹{{ customer.balance }}</strong>
+            <span>Get</span>
+            {% elif customer.balance < 0 %} <strong style="color: var(--danger)">₹{{ customer.balance | abs }}</strong>
+                <span>Give</span>
+                {% else %}
+                <strong style="color: var(--text-muted)">₹0</strong>
+                <span>Settled</span>
+                {% endif %}
+        </div>
+    </a>
+    {% else %}
+    <div id="emptyState" style="padding: 3rem; text-align: center; color: var(--text-muted);">
+        <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+        <p>No customers found.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<button class="fab" onclick="toggleModal('addCustomerModal')">
+    <i class="fas fa-user-plus"></i>
+</button>
+
+<div id="addCustomerModal" class="modal">
+    <div class="modal-content">
+        <h2 style="margin-bottom: 1rem;">Add New Customer</h2>
+        <form action="{{ url_for('main.add_customer') }}" method="POST">
+            <div class="form-group">
+                <label>Customer Name</label>
+                <input type="text" name="name" required>
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" name="phone">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn" style="background: #eee; color: #333;"
+                    onclick="toggleModal('addCustomerModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Search Functionality
+    document.getElementById('searchInput').addEventListener('input', function (e) {
+        const term = e.target.value.toLowerCase();
+        const items = document.querySelectorAll('.customer-item');
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            const name = item.dataset.name;
+            const phone = item.dataset.phone;
+            if (name.includes(term) || (phone && phone.includes(term))) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+
+    // Chart.js
+    const ctx = document.getElementById('balanceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Get', 'Give'],
+            datasets: [{
+                data: [{{ total_get }}, {{ total_give }}],
+        backgroundColor: ['#059669', '#dc2626'],
+        hoverOffset: 4,
+        borderWidth: 0
+    }]
+        },
+        options: {
+        cutout: '70%',
+        plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+        },
+        responsive: true,
+        maintainAspectRatio: false
+    }
+    });
+</script>
+{% endblock %}
